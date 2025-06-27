@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inward Document Report</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@latest/public/assets/styles/choices.min.css">
+  <style>
+    body {
+      background-color: #f0f4f8;
+      font-family: 'Arial', sans-serif;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .form-section {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+    .form-section h2 {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      color: #2d3748;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 1rem;
+      color: #2d3748;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4a90e2;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    }
+    button {
+      background-color: #4a90e2;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #357abd;
+    }
+    button:disabled {
+      background-color: #a0aec0;
+      cursor: not-allowed;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background-color: #4a90e2;
+      color: white;
+      font-weight: 600;
+    }
+    tr:hover {
+      background-color: #f7fafc;
+    }
+    #error-message {
+      display: none;
+      color: white;
+      background-color: #f56565;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-top: 1rem;
+      text-align: center;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    .stats-card {
+      background-color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .stats-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 1rem;
+    }
+    .language-table td {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Inward Document Report</h1>
+    <a href="/" class="text-blue-600 hover:underline mb-4 inline-block">← Back to Form</a>
+
+    <div class="form-section">
+      <h2>Generate Report</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="form-group">
+          <label for="start-date">Start Date *</label>
+          <input type="date" id="start-date" name="startDate" required>
+        </div>
+        <div class="form-group">
+          <label for="end-date">End Date *</label>
+          <input type="date" id="end-date" name="endDate" required>
+        </div>
+        <div class="form-group">
+          <label for="sender">Sender Name</label>
+          <select id="sender" name="sender">
+            <option value="">All Senders</option>
+          </select>
+        </div>
+      </div>
+      <div class="text-center">
+        <button id="generate-report-btn">Generate Report</button>
+        <button id="download-pdf-btn" class="ml-4" disabled>Download PDF</button>
+      </div>
+    </div>
+
+    <div id="report-section" class="form-section" style="display: none;">
+      <h2>Report Results</h2>
+
+      <div id="date-range-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Documents Received Between Dates</h3>
+        <table id="date-range-table">
+          <thead>
+            <tr>
+              <th>Inward Number</th>
+              <th>Reference Number</th>
+              <th>Subject</th>
+              <th>Sender Name</th>
+              <th>Sender Type</th>
+              <th>Receiving Division</th>
+              <th>Receiving Section</th>
+              <th>Receiver</th>
+              <th>Date as per Document</th>
+              <th>Submission Type</th>
+              <th>Document</th>
+            </tr>
+          </thead>
+          <tbody id="date-range-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Language Stats -->
+      <div id="language-stats-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Language Usage by Designation (%)</h3>
+        <table id="language-stats-table" class="language-table">
+          <thead>
+            <tr>
+              <th>Designation Category</th>
+              <th>Hindi</th>
+              <th>English</th>
+              <th>Bilingual</th>
+              <th>Other</th>
+            </tr>
+          </thead>
+          <tbody id="language-stats-table-body">
+            <tr>
+              <td>>=SOH</td>
+              <td id="soh-hindi">-</td>
+              <td id="soh-english">-</td>
+              <td id="soh-bilingual">-</td>
+              <td id="soh-other">-</td>
+            </tr>
+            <tr>
+              <td>>=SOF <SOH</td>
+              <td id="sof-hindi">-</td>
+              <td id="sof-english">-</td>
+              <td id="sof-bilingual">-</td>
+              <td id="sof-other">-</td>
+            </tr>
+            <tr>
+              <td><SOF</td>
+              <td id="below-sof-hindi">-</td>
+              <td id="below-sof-english">-</td>
+              <td id="below-sof-bilingual">-</td>
+              <td id="below-sof-other">-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="receiver-stats-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Documents Received by Receiver</h3>
+        <div class="stats-card">
+          <canvas id="receiver-chart"></canvas>
+        </div>
+      </div>
+
+      <div id="region-stats-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Documents Received by Region</h3>
+        <div class="stats-card">
+          <canvas id="region-chart"></canvas>
+        </div>
+      </div>
+
+      <div id="sender-documents-section" class="mb-8" style="display: none;">
+        <h3 class="text-lg font-semibold mb-4">Documents Sent by Selected Sender</h3>
+        <table id="sender-documents-table">
+          <thead>
+            <tr>
+              <th>Inward Number</th>
+              <th>Reference Number</th>
+              <th>Subject</th>
+              <th>Sender Name</th>
+              <th>Sender Type</th>
+              <th>Receiving Division</th>
+              <th>Receiving Section</th>
+              <th>Receiver</th>
+              <th>Date as per Document</th>
+              <th>Submission Type</th>
+              <th>Document</th>
+            </tr>
+          </thead>
+          <tbody id="sender-documents-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="error-message"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/choices.js@latest/public/assets/scripts/choices.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <script src="/report.js"></script>
+</body>
+</html>
