@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outward Document Tracking</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@latest/public/assets/styles/choices.min.css">
+  <link rel="stylesheet" href="/lib/choices.min.css" onerror="console.error('Failed to load Choices.js CSS')">
+  <style>
+    body {
+      background-color: #f0f4f8;
+      font-family: 'Arial', sans-serif;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .form-section {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+    .form-section h2 {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      color: #2d3748;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 1rem;
+      color: #2d3748;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #4a90e2;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    }
+    button {
+      background-color: #4a90e2;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #357abd;
+    }
+    button:disabled {
+      background-color: #a0aec0;
+      cursor: not-allowed;
+    }
+    #success-message, #error-message, #add-section-message {
+      display: none;
+      color: white;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-top: 1rem;
+      text-align: center;
+    }
+    #add-section-form {
+      display: none;
+      margin-top: 0.5rem;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+    }
+    .secondary-btn {
+      background-color: #6b7280;
+    }
+    .secondary-btn:hover {
+      background-color: #4b5563;
+    }
+    .scrollable-table {
+      max-height: 200px;
+      overflow-y: auto;
+      display: block;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 0.75rem;
+      text-align: left;
+      color: #2d3748;
+    }
+    th {
+      background-color: #edf2f7;
+      font-weight: 600;
+    }
+    td {
+      background-color: white;
+    }
+    .table-container {
+      margin-bottom: 1.5rem;
+    }
+    .disabled-table {
+      opacity: 0.5;
+      pointer-events: none;
+      background-color: #f7fafc;
+    }
+    .disabled-table input[type="checkbox"] {
+      cursor: not-allowed;
+    }
+    .subtopic-menu {
+      display: none;
+      position: absolute;
+      background-color: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      min-width: 200px;
+      z-index: 1000;
+    }
+    .subtopic-menu.show {
+      display: block;
+    }
+    .subtopic-item {
+      padding: 0.75rem;
+      cursor: pointer;
+      color: #2d3748;
+    }
+    .subtopic-item:hover {
+      background-color: #edf2f7;
+    }
+    .topic-dropdown {
+      display: none;
+      position: absolute;
+      background-color: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      min-width: 200px;
+      z-index: 900;
+    }
+    .topic-dropdown.show {
+      display: block;
+    }
+    .topic-item {
+      padding: 0.75rem;
+      cursor: pointer;
+      color: #2d3748;
+      position: relative;
+    }
+    .topic-item:hover {
+      background-color: #edf2f7;
+    }
+    .procedure-display {
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      background-color: #f7fafc;
+      min-height: 2.5rem;
+    }
+    .procedure-topic-toggle {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      background-color: white;
+      text-align: left;
+      cursor: pointer;
+    }
+    #inward-table-container, #inward-search-container {
+      display: none;
+    }
+    #inward-search, #cc-search {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 1rem;
+      color: #2d3748;
+    }
+    #inward-search:focus, #cc-search:focus {
+      outline: none;
+      border-color: #4a90e2;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    }
+    #inward-reference-group {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">Outward Document Tracking</h1>
+    <div class="text-center mb-8">
+      <a href="/report" class="inline-block bg-green-500 text-white font-semibold px-6 py-3 rounded-full shadow-lg hover:bg-teal-600 transition-all duration-300 transform hover:scale-105">
+        View Reports
+      </a>
+    </div>
+    <form id="outward-form" enctype="multipart/form-data">
+      <!-- Inward Document Selection Section -->
+      <div class="form-section">
+        <h2>Inward Document Selection</h2>
+        <div class="form-group">
+          <label for="is-reply">Is this a reply document? *</label>
+          <select id="is-reply" name="isReply" required>
+            <option value="">Select Option</option>
+          </select>
+        </div>
+        <div id="inward-search-container">
+          <input type="text" id="inward-search" placeholder="Search by Inward Number">
+        </div>
+        <div class="table-container" id="inward-table-container">
+          <div class="scrollable-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Inward Number</th>
+                  <th>Reference Number</th>
+                  <th>Subject</th>
+                  <th>Subtopic</th>
+                  <th>Sender Name</th>
+                  <th>Sender Type</th>
+                  <th>Reply To</th>
+                </tr>
+              </thead>
+              <tbody id="inward-documents-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Document Details Section -->
+      <div class="form-section">
+        <h2>Document Details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="form-group">
+            <label for="outward-reference">Reference Number (as per outward document) *</label>
+            <input type="text" id="outward-reference" name="outwardReference" required>
+          </div>
+          <div class="form-group" id="inward-reference-group">
+            <label for="inward-reference">Reference Number (as per inward document)</label>
+            <input type="text" id="inward-reference" name="inwardReference" readonly>
+          </div>
+          <div class="form-group">
+            <label for="subject">Subject of Document *</label>
+            <input type="text" id="subject" name="subject" required>
+          </div>
+          <div class="form-group">
+            <label for="procedure-subject">Procedure *</label>
+            <select id="procedure-subject" name="procedureSubject" required>
+              <option value="">Select Procedure</option>
+            </select>
+            <div id="procedure-topic-toggle" class="procedure-topic-toggle mt-2">Select Topic</div>
+            <div id="procedure-topic-dropdown" class="topic-dropdown"></div>
+            <div id="procedure-subtopics" class="subtopic-menu"></div>
+            <div id="procedure-display" class="procedure-display mt-2"></div>
+            <input type="hidden" id="procedure" name="procedure">
+          </div>
+          <div class="form-group">
+            <label for="language">Language of Document *</label>
+            <select id="language" name="language" required>
+              <option value="">Select Language</option>
+              <option value="Hindi">Hindi</option>
+              <option value="English">English</option>
+              <option value="Bilingual">Bilingual</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="date-sent">Date as per Document *</label>
+            <input type="date" id="date-sent" name="dateSent" required>
+          </div>
+          <div class="form-group">
+            <label for="submission-type">Submission Type *</label>
+            <select id="submission-type" name="submissionType" required>
+              <option value="">Select Submission Type</option>
+              <option value="Hard Copy">Hard Copy</option>
+              <option value="Soft Copy">Soft Copy</option>
+            </select>
+          </div>
+          <div class="form-group" id="hard-copies-group" style="display: none;">
+            <label for="hard-copies">Number of Hard Copies</label>
+            <input type="number" id="hard-copies" name="hardCopies" min="1">
+          </div>
+          <div class="form-group">
+            <label for="document">Upload Document (PDF, Max 10MB)</label>
+            <input type="file" id="document" name="document" accept="application/pdf">
+          </div>
+        </div>
+      </div>
+      <!-- Receiver's Information Section -->
+      <div class="form-section">
+        <h2>Receiver's Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="form-group">
+            <label for="recipient">Recipient *</label>
+            <input type="text" id="recipient" name="recipient" required>
+          </div>
+          <div class="form-group">
+            <label for="addressedTo">Type of Receiver *</label>
+            <select id="addressedTo" name="addressedTo" required>
+              <option value="">Select Address Type</option>
+              <option value="CentralGovt">Central Government</option>
+              <option value="StateGovt">State Government</option>
+              <option value="PrivateOrg">Private Organization</option>
+              <option value="Citizen">Citizen</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="organization">Organization *</label>
+            <input type="text" id="organization" name="organization" required>
+          </div>
+          <div class="form-group">
+            <label for="pincode">Pincode *</label>
+            <input type="text" id="pincode" name="pincode" pattern="\d{6}" maxlength="6" required>
+          </div>
+          <div class="form-group">
+            <label for="state">State *</label>
+            <select id="state" name="state" required>
+              <option value="">Select State</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="city">City *</label>
+            <input type="text" id="city" name="city" required>
+          </div>
+          <div class="form-group">
+            <label for="region">Region *</label>
+            <input type="text" id="region" name="region" readonly required>
+          </div>
+          <div class="form-group">
+            <label for="country">Country *</label>
+            <input type="text" id="country" name="country" required>
+          </div>
+        </div>
+      </div>
+      <!-- Sender's Information Section -->
+      <div class="form-section">
+        <h2>Sender's Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="form-group">
+            <label for="division">Division *</label>
+            <select id="division" name="division" required>
+              <option value="">Select Division</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="section">Section *</label>
+            <select id="section" name="section" required>
+              <option value="">Select Section</option>
+            </select>
+            <div id="add-section-form" class="hidden grid grid-cols-3 gap-4 mt-2">
+              <div class="form-group">
+                <label for="section-abbr">Abbreviation *</label>
+                <input type="text" id="section-abbr" name="sectionAbbr">
+              </div>
+              <div class="form-group">
+                <label for="section-name">Name *</label>
+                <input type="text" id="section-name" name="sectionName">
+              </div>
+              <button type="button" id="add-section-submit" class="secondary-btn self-end">Add</button>
+            </div>
+            <div id="add-section-message"></div>
+          </div>
+          <div class="form-group">
+            <label for="sender">Sender *</label>
+            <select id="sender" name="sender" class="choices__input--searchable" required>
+              <option value="">Search Sender</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <!-- CC Recipients Section -->
+      <div class="form-section">
+        <h2>CC Recipients</h2>
+        <div class="form-group">
+          <label for="cc-select-all">
+            <input type="checkbox" id="cc-select-all"> Select All
+          </label>
+        </div>
+        <div id="cc-search-container">
+          <input type="text" id="cc-search" placeholder="Search by Employee Name">
+        </div>
+        <div class="table-container" id="cc-table-container">
+          <div class="scrollable-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Select</th>
+                  <th>Employee Name</th>
+                </tr>
+              </thead>
+              <tbody id="cc-employees-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="text-center">
+        <button type="submit" id="submit-btn">Submit</button>
+      </div>
+    </form>
+    <div id="success-message"></div>
+    <div id="error-message"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js@latest/public/assets/scripts/choices.min.js"></script>
+  <script>
+    if (typeof Choices === 'undefined') {
+      console.warn('Choices.js CDN failed to load, loading local fallback');
+      document.write('<script src="/lib/choices.min.js"><\/script>');
+    }
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
