@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inward Document Tracking</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #f0f4f8;
+      font-family: 'Arial', sans-serif;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .form-section {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+    .form-section h2 {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      color: #2d3748;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 1rem;
+      color: #2d3748;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #4a90e2;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    }
+    .select2-container--default .select2-selection--single {
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      height: 44px;
+      padding: 6px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+      line-height: 30px;
+      color: #2d3748;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+      height: 40px;
+    }
+    button {
+      background-color: #4a90e2;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #357abd;
+    }
+    button:disabled {
+      background-color: #a0aec0;
+      cursor: not-allowed;
+    }
+    #error-message, #success-message {
+      display: none;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-top: 1rem;
+      text-align: center;
+    }
+    #error-message {
+      color: white;
+      background-color: #f56565;
+    }
+    #success-message {
+      color: white;
+      background-color: #48bb78;
+    }
+    .procedure-topic-toggle {
+      cursor: pointer;
+      background-color: #edf2f7;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+    .topic-dropdown {
+      display: none;
+      background-color: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .topic-dropdown div {
+      padding: 0.5rem;
+      cursor: pointer;
+    }
+    .topic-dropdown div:hover {
+      background-color: #f7fafc;
+    }
+    .subtopic-menu {
+      margin-top: 0.5rem;
+    }
+    .subtopic-menu div {
+      display: inline-block;
+      background-color: #e2e8f0;
+      padding: 0.5rem;
+      margin: 0.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .subtopic-menu div.selected {
+      background-color: #4a90e2;
+      color: white;
+    }
+    .procedure-display {
+      margin-top: 0.5rem;
+      font-weight: 600;
+      color: #2d3748;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Inward Document Tracking</h1>
+    <a href="/api/report" class="text-blue-600 hover:underline mb-4 inline-block">View Reports →</a>
+    <form id="inward-form" enctype="multipart/form-data">
+      <div class="form-section">
+        <h2>Document Details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="form-group">
+            <label for="reference-number">Reference Number *</label>
+            <input type="text" id="reference-number" name="referenceNumber" required>
+          </div>
+          <div class="form-group">
+            <label for="subject">Subject *</label>
+            <input type="text" id="subject" name="subject" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="procedure-subject">Procedure *</label>
+            <select id="procedure-subject" name="procedureSubject" required>
+              <option value="">Select Procedure</option>
+            </select>
+            <div id="procedure-topic-toggle" class="procedure-topic-toggle mt-2">Select Topic</div>
+            <div id="procedure-topic-dropdown" class="topic-dropdown"></div>
+            <div id="procedure-subtopics" class="subtopic-menu"></div>
+            <div id="procedure-display" class="procedure-display mt-2"></div>
+            <input type="hidden" id="procedures" name="procedures">
+            <input type="hidden" id="topic" name="topic">
+            <input type="hidden" id="subtopic" name="subtopic">
+          </div>
+          
+          <div class="form-group">
+            <label for="language">Language *</label>
+            <select id="language" name="language" required>
+              <option value="Hindi">Hindi</option>
+              <option value="English">English</option>
+              <option value="Bilingual">Bilingual</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="date-as-per-document">Date as per Document *</label>
+            <input type="date" id="date-as-per-document" name="dateAsPerDocument" required>
+          </div>
+          <div class="form-group">
+            <label for="inward-type">Inward Type *</label>
+            <select id="inward-type" name="inwardType" required>
+              <option value="With ACK">Inward With ACK</option>
+              <option value="Without ACK">Inward Without ACK</option>
+            </select>
+          </div>
+          
+          <div class="form-group" id="ack-number-group">
+            <label for="ack">ACK Number:</label>
+            <input type="number" id="ack" name="ackNumber" required readonly>
+          </div>
+          
+          <div class="form-group">
+            <label for="submission-type">Submission Type *</label>
+            <select id="submission-type" name="submissionType" required>
+              <option value="Soft Copy">Soft Copy</option>
+              <option value="Hard Copy">Hard Copy</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="document">Upload Document</label>
+            <input type="file" id="document" name="document" accept=".pdf">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="mt-8">Sender's Information</h2>
+        <div class="form-group">
+          <label for="sender-within-aerb">Within AERB from Other Division? *</label>
+          <select id="sender-within-aerb" name="senderWithinAerb" required>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        <!-- Sender within AERB -->
+        <div id="sender-aerb-section" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="form-group">
+            <label for="sender-name-aerb">Sender *</label>
+            <select id="sender-name-aerb" name="senderName" required>
+              <option value="">Select Sender</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sender-email-aerb">Sender's Email</label>
+            <input type="email" id="sender-email-aerb" name="senderEmail" readonly>
+          </div>
+          <div class="form-group">
+            <label for="sender-division">Division *</label>
+            <select id="sender-division" name="senderDivision" required disabled>
+              <option value="">Auto-filled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sender-section">Section *</label>
+            <select id="sender-section" name="senderSection" required disabled>
+              <option value="">Auto-filled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sender-type-aerb">Type of Sender</label>
+            <input type="text" id="sender-type-aerb" name="senderType" value="CentralGovt" readonly>
+          </div>
+          <div class="form-group">
+            <label for="region-aerb">Region</label>
+            <input type="text" id="region-aerb" name="region" value="B" readonly>
+          </div>
+        </div>
+        
+        <!-- Sender outside AERB -->
+        <div id="sender-external-section" class="grid grid-cols-1 md:grid-cols-2 gap-6" style="display: none;">
+          <div class="form-group">
+            <label for="sender-name-external">Sender's Name *</label>
+            <input type="text" id="sender-name-external" name="senderName" required>
+          </div>
+          <div class="form-group">
+            <label for="sender-email-external">Sender's Email *</label>
+            <input type="email" id="sender-email-external" name="senderEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="sender-type-external">Type of Sender *</label>
+            <select id="sender-type-external" name="senderType" required>
+              <option value="CentralGovt">Central Government</option>
+              <option value="StateGovt">State Government</option>
+              <option value="PrivateOrg">Private Organization</option>
+              <option value="Individual">Individual</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pincode">Pincode</label>
+            <input type="text" id="pincode" name="pincode">
+          </div>
+          <div class="form-group">
+            <label for="state">State *</label>
+            <select id="state" name="state" required>
+              <option value="">Select State</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="city">City *</label>
+            <input type="text" id="city" name="city" required>
+          </div>
+          <div class="form-group">
+            <label for="region-external">Region</label>
+            <input type="text" id="region-external" name="region" readonly>
+          </div>
+          <div class="form-group">
+            <label for="country">Country *</label>
+            <input type="text" id="country" name="country" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="mt-8">Receiver's Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="form-group">
+            <label for="receiver">Receiver *</label>
+            <select id="receiver" name="receiver" required>
+              <option value="">Select Receiver</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="receiving-division">Receiving Division *</label>
+            <select id="receiving-division" name="receivingDivision" required>
+              <option value="">Auto-filled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="receiving-section">Receiving Section *</label>
+            <select id="receiving-section" name="receivingSection" required>
+              <option value="">Auto-filled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="next-action-by">Next Action By *</label>
+            <select id="next-action-by" name="nextActionBy" required>
+              <option value="">Select Employee</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reply-expected">Reply Expected? *</label>
+            <select id="reply-expected" name="replyExpected" required>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-8">
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+
+    <div id="success-message"></div>
+    <div id="error-message"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('inward-form');
+      const senderWithinAerb = document.getElementById('sender-within-aerb');
+      const senderAerbSection = document.getElementById('sender-aerb-section');
+      const senderExternalSection = document.getElementById('sender-external-section');
+      const senderExternalName = document.getElementById('sender-name-external');
+      const senderExternalEmail = document.getElementById('sender-email-external');
+      const senderExternalType = document.getElementById('sender-type-external');
+      const inwardType = document.getElementById('inward-type');
+      const ackNumberGroup = document.getElementById('ack-number-group');
+      const ackNumberInput = document.getElementById('ack');
+      const senderDivision = document.getElementById('sender-division');
+      const senderSection = document.getElementById('sender-section');
+      const senderNameAerb = document.getElementById('sender-name-aerb');
+      const senderEmailAerb = document.getElementById('sender-email-aerb');
+      const stateSelect = document.getElementById('state');
+      const regionExternal = document.getElementById('region-external');
+      const pincodeInput = document.getElementById('pincode');
+      const cityInput = document.getElementById('city');
+      const countryInput = document.getElementById('country');
+      const receivingDivision = document.getElementById('receiving-division');
+      const receivingSection = document.getElementById('receiving-section');
+      const receiverSelect = document.getElementById('receiver');
+      const nextActionBySelect = document.getElementById('next-action-by');
+      const errorMessage = document.getElementById('error-message');
+      const successMessage = document.getElementById('success-message');
+      const procedureSubject = document.getElementById('procedure-subject');
+      const procedureTopicToggle = document.getElementById('procedure-topic-toggle');
+      const procedureTopicDropdown = document.getElementById('procedure-topic-dropdown');
+      const procedureSubtopics = document.getElementById('procedure-subtopics');
+      const procedureDisplay = document.getElementById('procedure-display');
+      const proceduresInput = document.getElementById('procedures');
+      const topicInput = document.getElementById('topic');
+      const subtopicInput = document.getElementById('subtopic');
+
+      let statesRegions = [];
+      let selectedProcedure = '';
+      let selectedTopic = '';
+      let selectedSubtopic = '';
+
+      // Initialize Select2 with pre-loaded employees
+      function initializeEmployeeSelect(selectElement, placeholder) {
+        $(selectElement).select2({
+          placeholder: placeholder,
+          allowClear: true,
+          ajax: {
+            url: 'http://localhost:4000/api/allemp',
+            dataType: 'json',
+            delay: 250,
+            data: params => ({ search: params.term || '' }),
+            processResults: data => ({
+              results: data.map(emp => ({
+                id: emp.EmpName,
+                text: `${emp.EmpName} (${emp.EmpCode})`,
+                email: emp.Email,
+                division: emp.Division,
+                section: emp.Section
+              }))
+            }),
+            cache: true
+          }
+        });
+
+        // Pre-load all employees on focus
+        $(selectElement).on('select2:open', () => {
+          if (!$(selectElement).hasClass('select2-loaded')) {
+            $.ajax({
+              url: 'http://localhost:4000/api/allemp',
+              dataType: 'json',
+              success: data => {
+                const results = data.map(emp => ({
+                  id: emp.EmpName,
+                  text: `${emp.EmpName} (${emp.EmpCode})`,
+                  email: emp.Email,
+                  division: emp.Division,
+                  section: emp.Section
+                }));
+                $(selectElement).data('select2').dataAdapter.current(data => {
+                  if (!data.length) {
+                    $(selectElement).data('select2').trigger('results', { results });
+                    $(selectElement).addClass('select2-loaded');
+                  }
+                });
+              },
+              error: err => {
+                console.error('Error pre-loading employees:', err);
+                showError('Failed to load employee list');
+              }
+            });
+          }
+        });
+      }
+
+      // Initialize Select2 for sender, receiver, and next action by
+      initializeEmployeeSelect(senderNameAerb, 'Search Sender (Name or Code)');
+      initializeEmployeeSelect(receiverSelect, 'Search Receiver (Name or Code)');
+      initializeEmployeeSelect(nextActionBySelect, 'Search Employee (Name or Code)');
+
+      // Load states and regions
+      async function loadStatesRegions() {
+        try {
+          console.log('Fetching states and regions from /api/states-regions');
+          const response = await fetch('http://localhost:4000/api/states-regions');
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          statesRegions = await response.json();
+          console.log('States and regions fetched:', statesRegions);
+          stateSelect.innerHTML = '<option value="">Select State</option>';
+          statesRegions.forEach(sr => {
+            const option = document.createElement('option');
+            option.value = sr.state;
+            option.text = sr.state;
+            stateSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error loading states and regions:', error);
+          showError('Failed to load states and regions');
+          const fallbackStates = [
+            { state: 'Maharashtra', region: 'B' },
+            { state: 'Delhi', region: 'A' },
+            { state: 'Karnataka', region: 'C' },
+          ];
+          statesRegions = fallbackStates;
+          stateSelect.innerHTML = '<option value="">Select State</option>';
+          fallbackStates.forEach(sr => {
+            const option = document.createElement('option');
+            option.value = sr.state;
+            option.text = sr.state;
+            stateSelect.appendChild(option);
+          });
+        }
+      }
+
+      // Update region
+      function updateRegion() {
+        const selectedState = stateSelect.value;
+        const mapping = statesRegions.find(sr => sr.state === selectedState);
+        regionExternal.value = mapping ? mapping.region : '';
+      }
+
+      // Fetch location by pincode
+      async function fetchLocationByPincode(pincode) {
+        try {
+          console.log(`Fetching location for pincode=${pincode}`);
+          const response = await fetch(`http://localhost:4000/api/pincode?pincode=${pincode}`);
+          const data = await response.json();
+          if (data.Status === 'Success' && data.PostOffice && data.PostOffice.length > 0) {
+            const postOffice = data.PostOffice[0];
+            cityInput.value = postOffice.District || '';
+            countryInput.value = postOffice.Country || 'India';
+            stateSelect.value = postOffice.State || '';
+            updateRegion();
+          } else {
+            showError('Invalid pincode or no data found');
+            resetExternalFields();
+          }
+        } catch (error) {
+          console.error('Error fetching pincode data:', error);
+          showError('Failed to fetch pincode data');
+          resetExternalFields();
+        }
+      }
+
+      // Reset external fields
+      function resetExternalFields() {
+        cityInput.value = '';
+        stateSelect.value = '';
+        regionExternal.value = '';
+        countryInput.value = 'India';
+      }
+
+      // Load divisions
+      async function loadDivisions(selectElement) {
+        try {
+          console.log('Fetching divisions from /api/divisions');
+          const response = await fetch('http://localhost:4000/api/divisions');
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const divisions = await response.json();
+          console.log('Divisions fetched:', divisions);
+          selectElement.innerHTML = '<option value="">Select Division</option>';
+          divisions.forEach(div => {
+            const option = document.createElement('option');
+            option.value = div.abbreviation;
+            option.text = `${div.name} (${div.abbreviation})`;
+            selectElement.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error loading divisions:', error);
+          showError('Failed to load divisions');
+        }
+      }
+
+      // Load sections
+      async function loadSections(divisionAbbr, selectElement) {
+        selectElement.innerHTML = '<option value="">Select Section</option>';
+        if (!divisionAbbr) {
+          selectElement.disabled = true;
+          return;
+        }
+        try {
+          console.log(`Fetching sections for division=${divisionAbbr}`);
+          const response = await fetch(`http://localhost:4000/api/sections?division=${encodeURIComponent(divisionAbbr)}`);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const sections = await response.json();
+          console.log('Sections fetched:', sections);
+          sections.forEach(sec => {
+            const option = document.createElement('option');
+            option.value = sec.abbreviation;
+            option.text = `${sec.name} (${sec.abbreviation})`;
+            selectElement.appendChild(option);
+          });
+          selectElement.disabled = false;
+        } catch (error) {
+          console.error('Error loading sections:', error);
+          showError('Failed to load sections');
+          selectElement.disabled = true;
+        }
+      }
+
+      // Load procedures
+      async function loadProcedures() {
+        try {
+          console.log('Fetching procedures from /api/procedures');
+          const response = await fetch('http://localhost:4000/api/procedures');
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const procedures = await response.json();
+          console.log('Procedures fetched:', procedures);
+          procedureSubject.innerHTML = '<option value="">Select Procedure</option>';
+          procedures.forEach(proc => {
+            const option = document.createElement('option');
+            option.value = proc.abbreviation;
+            option.text = `${proc.name} (${proc.abbreviation})`;
+            procedureSubject.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error loading procedures:', error);
+          showError('Failed to load procedures');
+        }
+      }
+
+      // Load topics
+      async function loadTopics(procedure) {
+        procedureTopicDropdown.innerHTML = '';
+        procedureTopicToggle.textContent = 'Select Topic';
+        procedureSubtopics.innerHTML = '';
+        procedureDisplay.textContent = '';
+        selectedTopic = '';
+        selectedSubtopic = '';
+        topicInput.value = '';
+        subtopicInput.value = '';
+        if (!procedure) {
+          procedureTopicToggle.style.display = 'none';
+          return;
+        }
+        try {
+          console.log(`Fetching topics for procedure=${procedure}`);
+          const response = await fetch(`http://localhost:4000/api/topics?procedure=${encodeURIComponent(procedure)}`);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const topics = await response.json();
+          console.log('Topics fetched:', topics);
+          procedureTopicToggle.style.display = 'block';
+          if (topics.length === 0) {
+            procedureTopicToggle.textContent = 'No Topics Available';
+            procedureTopicToggle.style.cursor = 'not-allowed';
+            return;
+          }
+          procedureTopicToggle.style.cursor = 'pointer';
+          topics.forEach(topic => {
+            const div = document.createElement('div');
+            div.textContent = topic.name;
+            div.dataset.value = topic.abbreviation;
+            div.addEventListener('click', () => {
+              selectedTopic = topic.abbreviation;
+              topicInput.value = selectedTopic;
+              procedureTopicToggle.textContent = topic.name;
+              procedureTopicDropdown.style.display = 'none';
+              loadSubtopics(procedure, selectedTopic);
+              updateProcedureDisplay();
+            });
+            procedureTopicDropdown.appendChild(div);
+          });
+        } catch (error) {
+          console.error('Error loading topics:', error);
+          showError('Failed to load topics');
+          procedureTopicToggle.style.display = 'none';
+        }
+      }
+
+      // Load subtopics
+      async function loadSubtopics(procedure, topic) {
+        procedureSubtopics.innerHTML = '';
+        selectedSubtopic = '';
+        subtopicInput.value = '';
+        updateProcedureDisplay();
+        if (!procedure || !topic) {
+          return;
+        }
+        try {
+          console.log(`Fetching subtopics for topic=${topic}`);
+          const response = await fetch(`http://localhost:4000/api/subtopics?topic=${encodeURIComponent(topic)}`);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const subtopics = await response.json();
+          console.log('Subtopics fetched:', subtopics);
+          if (subtopics.length === 0) {
+            procedureSubtopics.innerHTML = '<div>No Subtopics Available</div>';
+            return;
+          }
+          subtopics.forEach(sub => {
+            const div = document.createElement('div');
+            div.textContent = sub.name;
+            div.dataset.value = sub.abbreviation;
+            div.addEventListener('click', () => {
+              const previouslySelected = procedureSubtopics.querySelector('.selected');
+              if (previouslySelected) {
+                previouslySelected.classList.remove('selected');
+              }
+              div.classList.add('selected');
+              selectedSubtopic = sub.abbreviation;
+              subtopicInput.value = selectedSubtopic;
+              updateProcedureDisplay();
+            });
+            procedureSubtopics.appendChild(div);
+          });
+        } catch (error) {
+          console.error('Error loading subtopics:', error);
+          showError('Failed to load subtopics');
+        }
+      }
+
+      // Update procedure display
+      function updateProcedureDisplay() {
+        const parts = [];
+        if (selectedProcedure) {
+          const procOption = procedureSubject.querySelector(`option[value="${selectedProcedure}"]`);
+          parts.push(procOption ? procOption.text : selectedProcedure);
+        }
+        if (selectedTopic) {
+          parts.push(procedureTopicToggle.textContent);
+        }
+        if (selectedSubtopic) {
+          const subtopicDiv = procedureSubtopics.querySelector(`div[data-value="${selectedSubtopic}"]`);
+          parts.push(subtopicDiv ? subtopicDiv.textContent : selectedSubtopic);
+        }
+        procedureDisplay.textContent = parts.length > 0 ? parts.join(' > ') : '';
+      }
+
+      // Show error
+      function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        successMessage.style.display = 'none';
+      }
+
+      // Show success
+      function showSuccess(message) {
+        successMessage.textContent = message;
+        successMessage.style.display = 'block';
+        errorMessage.style.display = 'none';
+      }
+
+      // Toggle sender sections
+      function toggleSenderSections() {
+        if (senderWithinAerb.value === 'true') {
+          senderAerbSection.style.display = 'block';
+          senderExternalSection.style.display = 'none';
+          senderExternalName.required = false;
+          senderExternalEmail.required = false;
+          senderExternalType.required = false;
+          stateSelect.required = false;
+          cityInput.required = false;
+          countryInput.required = false;
+          senderNameAerb.required = true;
+          senderDivision.required = true;
+          senderSection.required = true;
+        } else {
+          senderAerbSection.style.display = 'none';
+          senderExternalSection.style.display = 'block';
+          senderExternalName.required = true;
+          senderExternalEmail.required = true;
+          senderExternalType.required = true;
+          stateSelect.required = true;
+          cityInput.required = true;
+          countryInput.required = true;
+          senderNameAerb.required = false;
+          senderDivision.required = false;
+          senderSection.required = false;
+          senderEmailAerb.value = '';
+          senderDivision.value = '';
+          senderSection.value = '';
+        }
+      }
+
+      // Fetch employee details and auto-fill division and section
+      async function fetchEmployeeDetails(name, divisionSelect, sectionSelect, emailInput) {
+        if (!name) {
+          divisionSelect.value = '';
+          sectionSelect.value = '';
+          if (emailInput) emailInput.value = '';
+          return;
+        }
+        try {
+          console.log(`Fetching details for employee=${name}`);
+          const response = await fetch(`http://localhost:4000/api/employee-details?name=${encodeURIComponent(name)}`);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const data = await response.json();
+          console.log('Employee details fetched:', data);
+          if (data.division && data.section) {
+            if (divisionSelect.options.length <= 1) {
+              await loadDivisions(divisionSelect);
+            }
+            divisionSelect.value = data.division || '';
+            if (!divisionSelect.querySelector(`option[value="${data.division}"]`)) {
+              const option = document.createElement('option');
+              option.value = data.division;
+              option.text = data.division;
+              divisionSelect.appendChild(option);
+            }
+            divisionSelect.value = data.division;
+            await loadSections(data.division, sectionSelect);
+            if (!sectionSelect.querySelector(`option[value="${data.section}"]`)) {
+              const option = document.createElement('option');
+              option.value = data.section;
+              option.text = data.section;
+              sectionSelect.appendChild(option);
+            }
+            sectionSelect.value = data.section || '';
+            if (emailInput && data.email) {
+              emailInput.value = data.email;
+            }
+            // Trigger change events to ensure Select2 updates
+            $(divisionSelect).trigger('change');
+            $(sectionSelect).trigger('change');
+          } else {
+            throw new Error('Incomplete employee data: missing division or section');
+          }
+        } catch (error) {
+          console.error('Error fetching employee details:', error);
+          showError(`Failed to fetch employee details for ${name}: ${error.message}`);
+          divisionSelect.value = '';
+          sectionSelect.value = '';
+          if (emailInput) emailInput.value = '';
+          $(divisionSelect).trigger('change');
+          $(sectionSelect).trigger('change');
+        }
+      }
+
+      // Load acknowledgment number
+      async function loadAckNumber(selectElement) {
+        try {
+          console.log('Fetching ACK');
+          const response = await fetch('http://localhost:4000/api/next-ack-number');
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const data = await response.json();
+          console.log('ACK fetched:', data);
+          selectElement.value = data.ackNumber;
+        } catch (error) {
+          console.error('Error loading ack number:', error);
+          showError(`Failed to load ack number: ${error.message}`);
+          selectElement.disabled = true;
+        }
+      }
+
+      // Initialize form
+      function initForm() {
+        senderWithinAerb.value = 'true';
+        toggleSenderSections();
+        loadDivisions(senderDivision);
+        loadDivisions(receivingDivision);
+        loadStatesRegions();
+        loadProcedures();
+        loadAckNumber(ackNumberInput);
+        inwardType.value = 'With ACK';
+        procedureTopicToggle.style.display = 'none';
+      }
+
+      // Event listeners
+      senderWithinAerb.addEventListener('change', toggleSenderSections);
+
+      inwardType.addEventListener('change', async () => {
+        if (inwardType.value === 'With ACK') {
+          ackNumberGroup.style.display = 'block';
+          await loadAckNumber(ackNumberInput);
+        } else {
+          ackNumberGroup.style.display = 'none';
+          ackNumberInput.value = '';
+        }
+      });
+
+      $(senderNameAerb).on('select2:select', e => {
+        const data = e.params.data;
+        fetchEmployeeDetails(data.id, senderDivision, senderSection, senderEmailAerb);
+      });
+
+      $(receiverSelect).on('select2:select', e => {
+        const data = e.params.data;
+        fetchEmployeeDetails(data.id, receivingDivision, receivingSection, null);
+      });
+
+      stateSelect.addEventListener('change', updateRegion);
+
+      pincodeInput.addEventListener('input', () => {
+        const pincode = pincodeInput.value.trim();
+        if (pincode.length === 6 && /^\d{6}$/.test(pincode)) {
+          fetchLocationByPincode(pincode);
+        } else {
+          resetExternalFields();
+        }
+      });
+
+      procedureSubject.addEventListener('change', () => {
+        selectedProcedure = procedureSubject.value;
+        proceduresInput.value = selectedProcedure;
+        procedureTopicToggle.textContent = 'Select Topic';
+        procedureTopicDropdown.innerHTML = '';
+        procedureSubtopics.innerHTML = '';
+        procedureDisplay.textContent = '';
+        selectedTopic = '';
+        selectedSubtopic = '';
+        topicInput.value = '';
+        subtopicInput.value = '';
+        if (selectedProcedure) {
+          loadTopics(selectedProcedure);
+        } else {
+          procedureTopicToggle.style.display = 'none';
+        }
+      });
+
+      procedureTopicToggle.addEventListener('click', () => {
+        if (procedureTopicDropdown.children.length > 0) {
+          procedureTopicDropdown.style.display = procedureTopicDropdown.style.display === 'block' ? 'none' : 'block';
+        }
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const senderWithinAerbValue = formData.get('senderWithinAerb') === 'true';
+        const inwardTypeValue = formData.get('inwardType');
+
+        // Explicitly set receiver fields
+        formData.set('receiver', receiverSelect.value);
+        formData.set('receivingDivision', receivingDivision.value);
+        formData.set('receivingSection', receivingSection.value);
+
+        formData.delete('senderName');
+        formData.delete('senderEmail');
+        formData.delete('senderDivision');
+        formData.delete('senderSection');
+        formData.delete('senderType');
+        formData.delete('pincode');
+        formData.delete('city');
+        formData.delete('state');
+        formData.delete('region');
+        formData.delete('country');
+        formData.delete('procedureSubject');
+
+        if (senderWithinAerbValue) {
+          formData.set('senderName', senderNameAerb.value);
+          formData.set('senderEmail', senderEmailAerb.value);
+          formData.set('senderDivision', senderDivision.value);
+          formData.set('senderSection', senderSection.value);
+          formData.set('senderType', 'CentralGovt');
+          formData.set('pincode', '400094');
+          formData.set('city', 'Mumbai');
+          formData.set('state', 'Maharashtra');
+          formData.set('region', 'B');
+          formData.set('country', 'India');
+        } else {
+          formData.set('senderName', senderExternalName.value);
+          formData.set('senderEmail', senderExternalEmail.value);
+          formData.set('senderType', senderExternalType.value);
+          formData.set('pincode', pincodeInput.value);
+          formData.set('city', cityInput.value);
+          formData.set('state', stateSelect.value);
+          formData.set('region', regionExternal.value);
+          formData.set('country', countryInput.value);
+        }
+
+        formData.delete('ackNumber');
+
+        // Log FormData for debugging
+        console.log('Submitting form data:', Object.fromEntries(formData));
+
+        try {
+          const response = await fetch('http://localhost:4000/api/inward-documents', {
+            method: 'POST',
+            body: formData,
+          });
+
+          let result;
+          try {
+            result = await response.json();
+          } catch (e) {
+            console.error('Failed to parse JSON response:', e, 'Status:', response.status, 'Response:', await response.text());
+            throw new Error('Invalid server response');
+          }
+
+          if (response.ok) {
+            console.log('Form submission successful:', result);
+            showSuccess(`${result.message} (Inward Number: ${result.inwardNumber}${result.ackNumber ? `, ACK: ${result.ackNumber}` : ''})`);
+            form.reset();
+            $(senderNameAerb).val(null).trigger('change');
+            $(receiverSelect).val(null).trigger('change');
+            $(nextActionBySelect).val(null).trigger('change');
+            if (inwardTypeValue === 'With ACK' && ackNumberGroup) {
+              await loadAckNumber(ackNumberInput);
+              ackNumberGroup.style.display = 'block';
+            } else if (ackNumberGroup) {
+              ackNumberGroup.style.display = 'none';
+            } else {
+              console.warn('ackNumberGroup element not found');
+            }
+            senderAerbSection.style.display = 'none';
+            senderExternalSection.style.display = 'none';
+            ackNumberGroup.style.display = 'none';
+            senderDivision.innerHTML = '<option value="">Auto-filled</option>';
+            senderSection.innerHTML = '<option value="">Auto-filled</option>';
+            senderEmailAerb.value
+
+ = '';
+            receivingDivision.innerHTML = '<option value="">Select Division</option>';
+            receivingSection.innerHTML = '<option value="">Select Section</option>';
+            receiverSelect.innerHTML = '<option value="">Select Receiver</option>';
+            nextActionBySelect.innerHTML = '<option value="">Select Employee</option>';
+            stateSelect.innerHTML = '<option value="">Select State</option>';
+            procedureSubject.innerHTML = '<option value="">Select Procedure</option>';
+            procedureTopicToggle.style.display = 'none';
+            procedureTopicToggle.textContent = 'Select Topic';
+            procedureTopicDropdown.innerHTML = '';
+            procedureSubtopics.innerHTML = '';
+            procedureDisplay.textContent = '';
+            proceduresInput.value = '';
+            topicInput.value = '';
+            subtopicInput.value = '';
+            selectedProcedure = '';
+            selectedTopic = '';
+            selectedSubtopic = '';
+            loadStatesRegions();
+            loadDivisions(senderDivision);
+            loadDivisions(receivingDivision);
+            loadProcedures();
+            inwardType.value = 'With ACK';
+            senderWithinAerb.value = 'true';
+            toggleSenderSections();
+            await loadAckNumber(ackNumberInput);
+          } else {
+            console.error('Form submission failed:', result, 'Status:', response.status);
+            showError(result.message || `Server error: ${response.status} ${response.statusText}`);
+          }
+        } catch (error) {
+          console.error('Network error during form submission:', error.message, error.stack);
+          showError(`Failed to submit form: ${error.message}`);
+        }
+      });
+
+      // Initialize
+      initForm();
+    });
+  </script>
+</body>
+</html>

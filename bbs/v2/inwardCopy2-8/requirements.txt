@@ -1,0 +1,1014 @@
+/*ACK
+next action by
+inward number
+watermark
+Outside AERB*/
+
+Report
+Linking the 2 of em(Option to choose in outward for reply ones)
+Processes-Sites
+Searchable(nex t action by)
+ACK reload
+
+
+const express = require('express');
+const mysql = require('mysql2/promise');
+const multer = require('multer');
+
+
+const { PDFDocument } = require('pdf-lib');
+const fs = require('fs').promises;
+const path = require('path');
+const cors = require('cors');
+const fetch = require('node-fetch');
+
+const app = express();
+app.use(cors());
+app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const storage = multer.diskStorage({
+  destination: './public/uploads',
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  },
+});
+
+const dbConfig = {
+  host: 'localhost',
+  user: 'root',
+  password: 'HiThere@2000',
+  database: 'aerb_db',
+};
+
+async function incrementAckAfterSubmit() {
+  try {
+    const response = await fetch('http://localhost:4000/api/addack');
+    if (!response.ok) throw new Error('Failed to increment ack number');
+
+    const data = await response.json();
+    console.log('Ack number incremented:', data.ack_number);
+    // Optionally update the input field
+    document.getElementById('ack').value = data.ack_number;
+  } catch (err) {
+    console.error('Error incrementing ack number:', err);
+  }
+}
+
+async function initializeDatabase() {
+  let connection;
+  try {
+    connection = await mysql.createConnection({
+      host: dbConfig.host,
+      user: dbConfig.user,
+      password: dbConfig.password,
+    });
+
+    await connection.query('CREATE DATABASE IF NOT EXISTS aerb_db');
+    await connection.query('USE aerb_db');
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS divisions (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        abbreviation VARCHAR(10) NOT NULL UNIQUE,
+        name VARCHAR(100) NOT NULL,
+        sequence INT NOT NULL
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS sections (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        division_id INT NOT NULL,
+        abbreviation VARCHAR(10) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        sequence INT NOT NULL,
+        FOREIGN KEY (division_id) REFERENCES divisions(id),
+        UNIQUE(division_id, abbreviation)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS sites (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        section_id INT NOT NULL,
+        abbreviation VARCHAR(10) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        sequence INT NOT NULL,
+        FOREIGN KEY (section_id) REFERENCES sections(id),
+        UNIQUE(section_id, abbreviation)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS processes (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        site_id INT NOT NULL,
+        abbreviation VARCHAR(10) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        sequence INT NOT NULL,
+        FOREIGN KEY (site_id) REFERENCES sites(id),
+        UNIQUE(site_id, abbreviation)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS emp (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        EmpCode VARCHAR(10) NOT NULL UNIQUE,
+        EmpName VARCHAR(100) NOT NULL,
+        Designation VARCHAR(50),
+        role VARCHAR(10),
+        Email VARCHAR(100),
+        Division VARCHAR(10) NOT NULL,
+        Section VARCHAR(10) NOT NULL,
+        DOB DATE,
+        status CHAR(1),
+        intercom VARCHAR(10),
+        mobile VARCHAR(15),
+        residence_no VARCHAR(15)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS counters (
+        name VARCHAR(255) PRIMARY KEY,
+        value INT NOT NULL
+      )
+    `);
+
+    /*await connection.query(
+      'INSERT IGNORE INTO counters (name, value) VALUES (?, ?)',
+      ['ack_number', 100000]
+    );*/
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS inward_numbers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        year VARCHAR(4) NOT NULL,
+        count INT DEFAULT 0,
+        UNIQUE (year)
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS inward_documents (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        reference_number VARCHAR(50) NOT NULL,
+        subject VARCHAR(100) NOT NULL,
+        language ENUM('Hindi', 'English', 'Bilingual', 'Other') NOT NULL,
+        date_as_per_document DATE NOT NULL,
+        inward_type ENUM('With ACK', 'Without ACK') NOT NULL,
+        ack_number VARCHAR(6),
+        process VARCHAR(10) NOT NULL,
+        site VARCHAR(10) NOT NULL,
+        submission_type ENUM('Soft Copy', 'Hard Copy') NOT NULL,
+        document_path VARCHAR(255),
+        sender_within_aerb BOOLEAN NOT NULL,
+        sender_division VARCHAR(10),
+        sender_section VARCHAR(10),
+        sender_name VARCHAR(100) NOT NULL,
+        sender_email VARCHAR(100) NOT NULL,
+        sender_type ENUM('CentralGovt', 'StateGovt', 'PrivateOrg', 'Individual') NOT NULL,
+        pincode VARCHAR(6),
+        city VARCHAR(100),
+        state VARCHAR(100),
+        region ENUM('A', 'B', 'C', 'D'),
+        country VARCHAR(100),
+        receiving_division VARCHAR(10) NOT NULL,
+        receiving_section VARCHAR(10) NOT NULL,
+        receiver VARCHAR(100) NOT NULL,
+        next_action_by VARCHAR(100) NOT NULL,
+        reply_expected BOOLEAN NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS outward_documents (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        reference_number VARCHAR(50) NOT NULL,
+        subject VARCHAR(100) NOT NULL,
+        language ENUM('Hindi', 'English', 'Bilingual', 'Other') NOT NULL,
+        date_of_letter DATE NOT NULL,
+        submission_type ENUM('Soft Copy', 'Hard Copy') NOT NULL,
+        document_path VARCHAR(255),
+        inward_id INT,
+        receiver_within_aerb BOOLEAN NOT NULL,
+        receiver_division VARCHAR(10),
+        receiver_section VARCHAR(10),
+        receiver_name VARCHAR(100) NOT NULL,
+        receiver_email VARCHAR(100) NOT NULL,
+        receiver_type ENUM('CentralGovt', 'StateGovt', 'PrivateOrg', 'Individual') NOT NULL,
+        pincode VARCHAR(6),
+        city VARCHAR(100),
+        state VARCHAR(100),
+        region ENUM('A', 'B', 'C', 'D'),
+        country VARCHAR(100),
+        country VARCHAR(100) NOT NULL,
+        sender_division VARCHAR(10) NOT NULL,
+        sender_section VARCHAR(10) NOT NULL,
+        sender VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (inward_id) REFERENCES inward_documents(id)
+      )
+    `);
+
+    const divisions = [
+      { abbreviation: 'OPSD', name: 'Operating Plant Safety Division', sequence: 1 },
+      { abbreviation: 'NPSD', name: 'Nuclear Projects Safety Division', sequence: 2 },
+      { abbreviation: 'RASD', name: 'Radiation Applications Safety Division', sequence: 3 },
+      { abbreviation: 'NSAD', name: 'Nuclear Safety Analysis Division', sequence: 4 },
+      { abbreviation: 'ITRDD', name: 'Information Technology and Regulatory Documents Division', sequence: 5 },
+      { abbreviation: 'DRI', name: 'Division of Regulatory Inspection', sequence: 6 },
+      { abbreviation: 'DRAER', name: 'Directorate of Regulatory Affairs & External Relations', sequence: 7 },
+      { abbreviation: 'DRPE', name: 'Division of Radiation Protection', sequence: 8 },
+      { abbreviation: 'SRI', name: 'Safety Research Institute', sequence: 9 },
+      { abbreviation: 'RRC', name: 'Regional Regulatory Center', sequence: 10 },
+    ];
+
+    await connection.query(
+      'INSERT IGNORE INTO divisions (abbreviation, name, sequence) VALUES ?',
+      [divisions.map(d => [d.abbreviation, d.name, d.sequence])]
+    );
+
+    const sections = [
+      { division: 'OPSD', abbreviation: 'SRS', name: 'Safety Review Section', sequence: 1 },
+      { division: 'OPSD', abbreviation: 'OCS', name: 'Operational Compliance Section', sequence: 2 },
+      { division: 'NPSD', abbreviation: 'PAS', name: 'Project Assessment Section', sequence: 1 },
+      { division: 'NPSD', abbreviation: 'DSS', name: 'Design Safety Section', sequence: 2 },
+      { division: 'RASD', abbreviation: 'RSS', name: 'Radiation Safety Section', sequence: 1 },
+      { division: 'RASD', abbreviation: 'ACS', name: 'Application Compliance Section', sequence: 2 },
+      { division: 'NSAD', abbreviation: 'ANS', name: 'Analysis Section', sequence: 1 },
+      { division: 'NSAD', abbreviation: 'SIMS', name: 'Simulation Section', sequence: 2 },
+      { division: 'ITRDD', abbreviation: 'ITS', name: 'IT Section', sequence: 1 },
+      { division: 'ITRDD', abbreviation: 'RDS', name: 'Regulatory Docs', sequence: 2 },
+      { division: 'DRI', abbreviation: 'INS', name: 'Inspection Section', sequence: 1 },
+      { division: 'DRI', abbreviation: 'CS', name: 'Compliance Section', sequence: 2 },
+      { division: 'DRAER', abbreviation: 'AFS', name: 'Affairs Section', sequence: 1 },
+      { division: 'DRAER', abbreviation: 'ERS', name: 'External Relations Section', sequence: 2 },
+      { division: 'DRPE', abbreviation: 'RPS', name: 'Radiation Protection Section', sequence: 1 },
+      { division: 'DRPE', abbreviation: 'ES', name: 'Environment Section', sequence: 2 },
+      { division: 'SRI', abbreviation: 'RS', name: 'Research Section', sequence: 1 },
+      { division: 'SRI', abbreviation: 'IS', name: 'Innovation Section', sequence: 2 },
+      { division: 'RRC', abbreviation: 'REGS', name: 'Regional Section', sequence: 1 },
+      { division: 'RRC', abbreviation: 'MS', name: 'Monitoring Section', sequence: 2 },
+    ];
+
+    for (const sec of sections) {
+      const [divisionResult] = await connection.query(
+        'SELECT id FROM divisions WHERE abbreviation = ?',
+        [sec.division]
+      );
+      if (!divisionResult[0]) {
+        throw new Error(`Division ${sec.division} not found`);
+      }
+      await connection.query(
+        'INSERT IGNORE INTO sections (division_id, abbreviation, name, sequence) VALUES (?, ?, ?, ?)',
+        [divisionResult[0].id, sec.abbreviation, sec.name, sec.sequence]
+      );
+    }
+
+    const sites = [
+      { section: 'SRS', abbreviation: 'S1', name: 'Site1', sequence: 1 },
+      { section: 'SRS', abbreviation: 'S2', name: 'Site2', sequence: 2 },
+      { section: 'OCS', abbreviation: 'S3', name: 'Site3', sequence: 1 },
+      { section: 'PAS', abbreviation: 'S4', name: 'Site4', sequence: 1 },
+      { section: 'PAS', abbreviation: 'S5', name: 'Site5', sequence: 2 },
+      { section: 'DSS', abbreviation: 'S6', name: 'Site6', sequence: 1 },
+      { section: 'RSS', abbreviation: 'S7', name: 'Site7', sequence: 1 },
+      { section: 'ACS', abbreviation: 'S8', name: 'Site8', sequence: 1 },
+      { section: 'ANS', abbreviation: 'S9', name: 'Site9', sequence: 1 },
+      { section: 'SIMS', abbreviation: 'S10', name: 'Site10', sequence: 1 },
+      { section: 'ITS', abbreviation: 'S11', name: 'Site11', sequence: 1 },
+      { section: 'RDS', abbreviation: 'S12', name: 'Site12', sequence: 1 },
+      { section: 'INS', abbreviation: 'S13', name: 'Site13', sequence: 1 },
+      { section: 'CS', abbreviation: 'S14', name: 'Site14', sequence: 1 },
+      { section: 'AFS', abbreviation: 'S15', name: 'Site15', sequence: 1 },
+      { section: 'ERS', abbreviation: 'S16', name: 'Site16', sequence: 1 },
+      { section: 'RPS', abbreviation: 'S17', name: 'Site17', sequence: 1 },
+      { section: 'ES', abbreviation: 'S18', name: 'Site18', sequence: 1 },
+      { section: 'RS', abbreviation: 'S19', name: 'Site19', sequence: 1 },
+      { section: 'IS', abbreviation: 'S20', name: 'Site20', sequence: 1 },
+      { section: 'REGS', abbreviation: 'S21', name: 'Site21', sequence: 1 },
+      { section: 'MS', abbreviation: 'S22', name: 'Site22', sequence: 2 },
+    ];
+
+    for (const s of sites) {
+      const [sectionResult] = await connection.query(
+        'SELECT id FROM sections WHERE abbreviation = ?',
+        [s.section]
+      );
+      if (!sectionResult[0]) {
+        throw new Error(`Section ${s.section} not found`);
+      }
+      await connection.query(
+        'INSERT IGNORE INTO sites (section_id, abbreviation, name, sequence) VALUES (?, ?, ?, ?)',
+        [sectionResult[0].id, s.abbreviation, s.name, s.sequence]
+      );
+    }
+
+    const processes = [
+      { site: 'S1', abbreviation: 'P1', name: 'Process1', sequence: 1 },
+      { site: 'S1', abbreviation: 'P2', name: 'Process2', sequence: 2 },
+      { site: 'S2', abbreviation: 'P3', name: 'Process3', sequence: 1 },
+      { site: 'S3', abbreviation: 'P4', name: 'Process4', sequence: 1 },
+      { site: 'S4', abbreviation: 'P5', name: 'Process5', sequence: 1 },
+      { site: 'S5', abbreviation: 'P6', name: 'Process6', sequence: 1 },
+      { site: 'S6', abbreviation: 'P7', name: 'Process7', sequence: 1 },
+      { site: 'S7', abbreviation: 'P8', name: 'Process8', sequence: 1 },
+      { site: 'S8', abbreviation: 'P9', name: 'Process9', sequence: 1 },
+      { site: 'S9', abbreviation: 'P10', name: 'Process10', sequence: 1 },
+      { site: 'S10', abbreviation: 'P11', name: 'Process11', sequence: 1 },
+      { site: 'S11', abbreviation: 'P12', name: 'Process12', sequence: 1 },
+      { site: 'S12', abbreviation: 'P13', name: 'Process13', sequence: 1 },
+      { site: 'S13', abbreviation: 'P14', name: 'Process14', sequence: 1 },
+      { site: 'S14', abbreviation: 'P15', name: 'Process15', sequence: 1 },
+      { site: 'S15', abbreviation: 'P16', name: 'Process16', sequence: 1 },
+      { site: 'S16', abbreviation: 'P17', name: 'Process17', sequence: 1 },
+      { site: 'S17', abbreviation: 'P18', name: 'Process18', sequence: 1 },
+      { site: 'S18', abbreviation: 'P19', name: 'Process19', sequence: 1 },
+      { site: 'S19', abbreviation: 'P20', name: 'Process20', sequence: 1 },
+      { site: 'S20', abbreviation: 'P21', name: 'Process21', sequence: 1 },
+      { site: 'S21', abbreviation: 'P22', name: 'Process22', sequence: 1 },
+      { site: 'S22', abbreviation: 'P23', name: 'Process23', sequence: 1 },
+    ];
+
+    for (const p of processes) {
+      const [siteResult] = await connection.query(
+        'SELECT id FROM sites WHERE abbreviation = ?',
+        [p.site]
+      );
+      if (!siteResult[0]) {
+        throw new Error(`Site ${p.site} not found`);
+      }
+      await connection.query(
+        'INSERT IGNORE INTO processes (site_id, abbreviation, name, sequence) VALUES (?, ?, ?, ?)',
+        [siteResult[0].id, p.abbreviation, p.name, p.sequence]
+      );
+    }
+
+    const employees = [
+      { EmpCode: '1001', EmpName: 'John Doe', Designation: 'SOH', role: 'SOH', Email: 'john.doe@example.com', Division: 'OPSD', Section: 'SRS', DOB: '1990-01-01', status: 'A', intercom: '1001', mobile: '9876543210', residence_no: '221234567' },
+      { EmpCode: '1002', EmpName: 'Amit Sharma', Designation: 'SOF', role: 'SOF', Email: 'amit.sharma@example.com', Division: 'OPSD', Section: 'OCS', DOB: '1985-05-15', status: 'A', intercom: '1002', mobile: '9876543211', residence_no: '221234568' },
+      { EmpCode: '1003', EmpName: 'Priya Patel', Designation: 'SOG', role: 'MGR', Email: 'priya.patel@example.com', Division: 'NPSD', Section: 'PAS', DOB: '1988-03-20', status: 'A', intercom: '1003', mobile: '9876543212', residence_no: '221234569' },
+      { EmpCode: '1004', EmpName: 'Rahul Verma', Designation: 'SOH', role: 'ANA', Email: 'rahul.verma@example.com', Division: 'NPSD', Section: 'DSS', DOB: '1992-07-10', status: 'A', intercom: '1004', mobile: '9876543213', residence_no: '221234570' },
+      { EmpCode: '1005', EmpName: 'Neha Gupta', Designation: 'SOF', role: 'SCI', Email: 'neha.gupta@example.com', Division: 'RASD', Section: 'RSS', DOB: '1990-11-25', status: 'A', intercom: '1005', mobile: '9876543214', residence_no: '221234571' },
+      { EmpCode: '1006', EmpName: 'Anup Shinde', Designation: 'SOH', role: 'SOH', Email: 'anup.shinde@example.com', Division: 'OPSD', Section: 'SRS', DOB: '1987-09-12', status: 'A', intercom: '1006', mobile: '9876543215', residence_no: '221234572' },
+    ];
+
+    await connection.query(
+      'INSERT IGNORE INTO emp (EmpCode, EmpName, Designation, role, Email, Division, Section, DOB, status, intercom, mobile, residence_no) VALUES ?',
+      [employees.map(e => [e.EmpCode, e.EmpName, e.Designation, e.role, e.Email, e.Division, e.Section, e.DOB, e.status, e.intercom, e.mobile, e.residence_no])]
+    );
+
+    console.log('Database initialized successfully');
+  } catch (err) {
+    console.error('Database initialization failed:', err);
+    throw err;
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
+
+
+
+/*async function watermarkPDF(inputPath, outwardNumber, outputPath) {
+  try {
+    console.log('Watermarking PDF:', { inputPath, outputPath, outwardNumber });
+    const pdfBytes = await fs.readFile(inputPath);
+    console.log('PDF read successfully, size:', pdfBytes.length);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    console.log('PDF loaded successfully');
+    const pages = pdfDoc.getPages();
+    if (!pages.length) throw new Error('No pages in PDF');
+    const firstPage = pages[0];
+    const { width } = firstPage.getSize();
+    firstPage.drawText(outwardNumber, {
+      x: 50,
+      y: firstPage.getHeight() - 50,
+      size: 15,
+      opacity: 0.5
+    });
+    const pdfBytesWatermarked = await pdfDoc.save();
+    await fs.writeFile(outputPath, pdfBytesWatermarked);
+    console.log('PDF watermarked and saved');
+  } catch (error) {
+    console.error('Watermark Error:', error.message, error.stack);
+    throw error;
+  }
+}*/
+
+function generateInwardNumber(division, section, site, process, callback) {
+  const year = new Date().getFullYear();
+  pool.query(
+    `SELECT d.sequence AS div_seq, s.sequence AS sec_seq, st.sequence AS site_seq, p.sequence AS proc_seq
+     FROM divisions d
+     LEFT JOIN sections s ON d.id = s.division_id AND s.abbreviation = ?
+     LEFT JOIN sites st ON s.id = st.section_id AND st.abbreviation = ?
+     LEFT JOIN processes p ON st.id = p.site_id AND p.abbreviation = ?
+     WHERE d.abbreviation = ?`,
+    [section, site, process, division],
+    (err, results) => {
+      if (err || !results[0]) {
+        return callback(err || new Error('Invalid division/section/site/process'));
+      }
+      const { div_seq, sec_seq, site_seq, proc_seq } = results[0];
+      if (!div_seq || !sec_seq || !site_seq || !proc_seq) {
+        return callback(new Error('Missing sequence for division/section/site/process'));
+      }
+      const encoded = `${div_seq}${sec_seq}${site_seq}${proc_seq}`;
+      const prefix = `AERB/${division}/${section}/${site}/${process}/${encoded}/${year}/`;
+      pool.query(
+        `SELECT COUNT(*) as count FROM inward_documents WHERE inward_number LIKE ?`,
+        [`${prefix}%`],
+        (err, results) => {
+          if (err) return callback(err);
+          if (!results || !results[0] || typeof results[0].count !== 'number') {
+            return callback(new Error('Invalid query result'));
+          }
+          const sequence = String(results[0].count + 1).padStart(3, '0');
+          callback(null, `${prefix}${sequence}`);
+        }
+      );
+    }
+  );
+}
+
+
+const pool = mysql.createPool({ ...dbConfig, waitForConnections: true, connectionLimit: 10 });
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+app.get('/api/report', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/report.html'));
+});
+
+app.get('/api/divisions', async (req, res) => {
+  try {
+    const [results] = await pool.query('SELECT abbreviation, name FROM divisions ORDER BY sequence');
+    res.json(results);
+  } catch (err) {
+    console.error('Database error in /api/divisions:', err);
+    res.status(500).json({ message: 'Database error' });
+  }
+});
+
+app.get('/api/sections', async (req, res) => {
+  const division = req.query.division;
+  if (!division) return res.status(400).json({ message: 'Division required' });
+  try {
+    const [results] = await pool.query(
+      `SELECT s.abbreviation, s.name 
+       FROM sections s 
+       JOIN divisions d ON s.division_id = d.id 
+       WHERE d.abbreviation = ? 
+       ORDER BY s.sequence`,
+      [division]
+    );
+    res.json(results);
+  } catch (err) {
+    console.error('Database error in /api/sections:', err);
+    res.status(500).json({ message: 'Database error' });
+  }
+});
+
+app.get('/api/sites', async (req, res) => {
+  const section = req.query.section;
+  if (!section) return res.status(400).json({ message: 'Section required' });
+  try {
+    const [results] = await pool.query(
+      `SELECT st.abbreviation, st.name 
+       FROM sites st 
+       JOIN sections s ON st.section_id = s.id 
+       WHERE s.abbreviation = ? 
+       ORDER BY st.sequence`,
+      [section]
+    );
+    res.json(results);
+  } catch (err) {
+    console.error('Database error in /api/sites:', err);
+    res.status(500).json({ message: 'Database error' });
+  }
+});
+
+app.get('/api/processes', async (req, res) => {
+  const site = req.query.site;
+  if (!site) return res.status(400).json({ message: 'Site required' });
+  try {
+    const [results] = await pool.query(
+      `SELECT p.abbreviation, p.name 
+       FROM processes p 
+       JOIN sites st ON p.site_id = st.id 
+       WHERE st.abbreviation = ? 
+       ORDER BY p.sequence`,
+      [site]
+    );
+    res.json(results);
+  } catch (err) {
+    console.error('Database error in /api/processes:', err);
+    res.status(500).json({ message: 'Database error' });
+  }
+});
+
+app.get('/api/employees', async (req, res) => {
+  const { division, section } = req.query;
+  if (!division || !section) {
+    console.error('Missing division or section:', { division, section });
+    return res.status(400).json({ message: 'Division and section required' });
+  }
+  try {
+    const [results] = await pool.query(
+      'SELECT EmpName, Email FROM emp WHERE Division = ? AND Section = ? ORDER BY EmpName',
+      [division, section]
+    );
+    if (results.length === 0) {
+      console.warn(`No employees found for Division=${division}, Section=${section}`);
+    }
+    res.json(results);
+  } catch (err) {
+    console.error(`Error fetching employees for Division=${division}, Section=${section}:`, err);
+    res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+app.get('/api/allemp', async (req, res) => {
+  try {
+    const [results] = await pool.query(
+      'SELECT EmpName, Email FROM emp ORDER BY EmpName'
+    );
+    if (results.length === 0) {
+      console.warn(`No employees found`);
+    }
+    res.json(results);
+  } catch (err) {
+    console.error(`Error fetching employees:`, err);
+    res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+
+//
+app.get('/api/getack', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT `value` FROM counters WHERE name='ack_number'"
+    );
+
+    if (rows.length === 0) {
+      console.warn(`No ack number found`);
+      return res.status(404).json({ message: 'Ack number not found' });
+    }
+
+    res.json({ ack_number: rows[0].value });
+  } catch (err) {
+    console.error(`Error fetching ack number:`, err);
+    res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+
+/*
+app.get('/api/addack',async(req,res)=>{
+  try{
+    const [results] = await pool.query(
+      "UPDATE counters SET value=value+1 WHERE name='ack_number'"
+    );
+  if (results.length === 0) {
+    console.warn(`No ack number found`);
+    return res.status(404).json({ message: 'Ack number not found' });
+
+  }
+
+  res.json({ack_number:results[0].value});
+}catch (err) {
+  console.error(`Error fetching ack number:`, err);
+  res.status(500).json({ message: 'Database error', error: err.message });
+}
+});
+*/
+//
+
+
+
+app.get('/api/states-regions', async (req, res) => {
+  try {
+    const statesRegions = [
+      { state: 'Andaman and Nicobar Islands', region: 'D' },
+      { state: 'Andhra Pradesh', region: 'C' },
+      { state: 'Arunachal Pradesh', region: 'A' },
+      { state: 'Assam', region: 'A' },
+      { state: 'Bihar', region: 'A' },
+      { state: 'Chandigarh', region: 'A' },
+      { state: 'Chhattisgarh', region: 'B' },
+      { state: 'Dadra and Nagar Haveli and Daman and Diu', region: 'B' },
+      { state: 'Delhi', region: 'A' },
+      { state: 'Goa', region: 'B' },
+      { state: 'Gujarat', region: 'B' },
+      { state: 'Haryana', region: 'A' },
+      { state: 'Himachal Pradesh', region: 'A' },
+      { state: 'Jammu and Kashmir', region: 'A' },
+      { state: 'Jharkhand', region: 'A' },
+      { state: 'Karnataka', region: 'C' },
+      { state: 'Kerala', region: 'C' },
+      { state: 'Ladakh', region: 'A' },
+      { state: 'Lakshadweep', region: 'D' },
+      { state: 'Madhya Pradesh', region: 'B' },
+      { state: 'Maharashtra', region: 'B' },
+      { state: 'Manipur', region: 'A' },
+      { state: 'Meghalaya', region: 'A' },
+      { state: 'Mizoram', region: 'A' },
+      { state: 'Nagaland', region: 'A' },
+      { state: 'Odisha', region: 'C' },
+      { state: 'Puducherry', region: 'C' },
+      { state: 'Punjab', region: 'A' },
+      { state: 'Rajasthan', region: 'A' },
+      { state: 'Sikkim', region: 'A' },
+      { state: 'Tamil Nadu', region: 'C' },
+      { state: 'Telangana', region: 'C' },
+      { state: 'Tripura', region: 'A' },
+      { state: 'Uttar Pradesh', region: 'A' },
+      { state: 'Uttarakhand', region: 'A' },
+      { state: 'West Bengal', region: 'A' },
+    ];
+    res.json(statesRegions);
+  } catch (err) {
+    console.error('Error fetching states-regions:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/*app.get('/api/next-ack-number', async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const [results] = await connection.query('SELECT value FROM counters WHERE name = "ack_number" FOR UPDATE');
+    if (results.length === 0) {
+      throw new Error('Acknowledgment counter not initialized');
+    }
+
+    const currentAck = results[0].value;
+    const nextAck = currentAck + 1;
+
+    await connection.query('UPDATE counters SET value = ? WHERE name = "ack_number"', [nextAck]);
+    await connection.commit();
+
+    res.json({ ackNumber: nextAck.toString().padStart(6, '0') });
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Error fetching ack_number:', err);
+    res.status(500).json({ message: 'Database error' });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});*/
+
+app.get('/api/next-inward-number', async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const year = new Date().getFullYear().toString();
+    const [results] = await connection.query(
+      'SELECT count FROM inward_numbers WHERE year = ? FOR UPDATE',
+      [year]
+    );
+
+    let nextCount;
+    if (results.length === 0) {
+      await connection.query(
+        'INSERT INTO inward_numbers (year, count) VALUES (?, 1)',
+        [year]
+      );
+      nextCount = 1;
+    } else {
+      nextCount = results[0].count + 1;
+      await connection.query(
+        'UPDATE inward_numbers SET count = ? WHERE year = ?',
+        [nextCount, year]
+      );
+    }
+
+    await connection.commit();
+    res.json({ inwardNumber: `${year}/${nextCount.toString().padStart(4, '0')}` });
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Error fetching inward_number:', err);
+    res.status(500).json({ message: 'Database error' });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+app.get('/api/inward-documents', async (req, res) => {
+  try {
+    const [results] = await pool.query('SELECT * FROM inward_documents ORDER BY created_at DESC');
+    res.json(results);
+  } catch (err) {
+    console.error('Error fetching inward documents:', err);
+    res.status(500).json({ message: 'Database error' });
+  }
+});
+
+app.get('/api/outward-documents', async (req, res) => {
+  try {
+    const [results] = await pool.query('SELECT * FROM outward_documents ORDER BY created_at DESC');
+    res.json(results);
+  } catch (err) {
+    console.error('Error fetching outward documents:', err);
+    res.status(500).json({ message: 'Database error' });
+  }
+});
+
+app.get('/api/inward-documents/pending-replies', async (req, res) => {
+  try {
+    const [results] = await pool.query(
+      `SELECT i.*
+       FROM inward_documents i
+       LEFT JOIN outward_documents o ON i.id = o.inward_id
+       WHERE i.reply_expected = 1 AND o.id IS NULL
+       ORDER BY i.created_at DESC`
+    );
+    res.json(results);
+  } catch (err) {
+    console.error('Error fetching pending replies:', err);
+    res.status(500).json({ message: 'Database error' });
+  }
+});
+
+app.get('/api/next-ack-number', async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const [results] = await connection.query('SELECT value FROM counters WHERE name = "ack_number" FOR UPDATE');
+    if (results.length === 0) {
+      throw new Error('Acknowledgment counter not initialized');
+    }
+
+    const currentAck = results[0].value;
+    const nextAck = currentAck;
+
+    await connection.commit();
+
+    res.json({ ackNumber: nextAck.toString().padStart(6, '0') });
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Error fetching ack_number:', err);
+    res.status(500).json({ message: 'Database error' });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+/*app.post('/api/inward-documents', upload.single('document'), async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const {
+      referenceNumber, subject, language, dateAsPerDocument, inwardType,
+      process, site, submissionType, senderWithinAerb, senderDivision, senderSection,
+      senderName, senderEmail, senderType, pincode, city, state, region, country,
+      receivingDivision, receivingSection, receiver, nextActionBy, replyExpected,
+    } = req.body;
+
+    console.log('Received inward document data:', {
+      referenceNumber, subject, language, dateAsPerDocument, inwardType,
+      process, site, submissionType, senderWithinAerb, senderDivision, senderSection,
+      senderName, senderEmail, senderType, pincode, city, state, region, country,
+      receivingDivision, receivingSection, receiver, nextActionBy, replyExpected,
+    });
+
+    if (!referenceNumber || !subject || !language || !dateAsPerDocument || !inwardType ||
+        !process || !site || !submissionType || !senderName || !senderEmail || !senderType ||
+        !receivingDivision || !receivingSection || !receiver || !nextActionBy || replyExpected === undefined) {
+      console.error('Missing required fields:', {
+        referenceNumber, subject, language, dateAsPerDocument, inwardType, process, site,
+        submissionType, senderName, senderEmail, senderType, receivingDivision, receivingSection,
+        receiver, nextActionBy, replyExpected,
+      });
+      throw new Error('Missing required fields');
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateAsPerDocument)) {
+      throw new Error('Invalid date format for dateAsPerDocument; use YYYY-MM-DD');
+    }
+    if (pincode && !/^\d{6}$/.test(pincode)) {
+      throw new Error('Invalid pincode; must be 6 digits');
+    }
+    if (senderWithinAerb === 'true' && (!senderDivision || !senderSection)) {
+      throw new Error('Sender division and section required for AERB sender');
+    }
+    if (senderWithinAerb === 'true' && senderType !== 'CentralGovt') {
+      throw new Error('Sender type must be CentralGovt for AERB sender');
+    }
+    if (senderWithinAerb !== 'true' && (!city || !state || !country)) {
+      throw new Error('Address fields required for external sender');
+    }
+
+    let ackNumber = null;
+    if (inwardType === 'With ACK') {
+      const [ackResults] = await connection.query('SELECT value FROM counters WHERE name = "ack_number" FOR UPDATE');
+      if (ackResults.length === 0) {
+        throw new Error('Acknowledgment counter not initialized');
+      }
+      ackNumber = ackResults[0].value.toString().padStart(6, '0');
+      await connection.query('UPDATE counters SET value = value + 1 WHERE name = "ack_number"');
+    }
+
+    const documentPath = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const query = `
+      INSERT INTO inward_documents (
+        reference_number, subject, language, date_as_per_document, inward_type, ack_number,
+        process, site, submission_type, document_path, sender_within_aerb, sender_division,
+        sender_section, sender_name, sender_email, sender_type, pincode, city, state, region,
+        country, receiving_division, receiving_section, receiver, next_action_by, reply_expected
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      referenceNumber, subject, language, dateAsPerDocument, inwardType, ackNumber,
+      process, site, submissionType, documentPath, senderWithinAerb === 'true',
+      senderDivision || null, senderSection || null, senderName, senderEmail, senderType,
+      pincode || null, city || null, state || null, region || null, country || null,
+      receivingDivision, receivingSection, receiver, nextActionBy, replyExpected === 'true',
+    ];
+
+    console.log('Insert values:', values);
+
+    const [results] = await connection.query(query, values);
+    await connection.commit();
+
+    res.json({ message: 'Inward document saved successfully', id: results.insertId, ackNumber });
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Error saving inward document:', err);
+    res.status(500).json({ message: 'Database error', details: err.message });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});*/
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+app.post('/api/inward-documents', upload.single('document'), async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const {
+      referenceNumber, subject, language, dateAsPerDocument, inwardType,
+      process, site, submissionType, senderWithinAerb, senderDivision, senderSection,
+      senderName, senderEmail, senderType, pincode, city, state, region, country,
+      receivingDivision, receivingSection, receiver, nextActionBy, replyExpected,
+    } = req.body;
+
+    console.log('Received inward document data:', {
+      referenceNumber, subject, language, dateAsPerDocument, inwardType,
+      process, site, submissionType, senderWithinAerb, senderDivision, senderSection,
+      senderName, senderEmail, senderType, pincode, city, state, region, country,
+      receivingDivision, receivingSection, receiver, nextActionBy, replyExpected,
+    });
+
+    // Validation
+    if (!referenceNumber || !subject || !language || !dateAsPerDocument || !inwardType ||
+        !process || !site || !submissionType || !senderName || !senderEmail || !senderType ||
+        !receivingDivision || !receivingSection || !receiver || !nextActionBy || replyExpected === undefined) {
+      throw new Error('Missing required fields');
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateAsPerDocument)) {
+      throw new Error('Invalid date format for dateAsPerDocument; use YYYY-MM-DD');
+    }
+    if (pincode && !/^\d{6}$/.test(pincode)) {
+      throw new Error('Invalid pincode; must be 6 digits');
+    }
+    if (senderWithinAerb === 'true' && (!senderDivision || !senderSection)) {
+      throw new Error('Sender division and section required for AERB sender');
+    }
+    if (senderWithinAerb === 'true' && senderType !== 'CentralGovt') {
+      throw new Error('Sender type must be CentralGovt for AERB sender');
+    }
+    if (senderWithinAerb !== 'true' && (!senderCountry || !senderPincode)) {
+      throw new Error('Sender country and pincode required');
+    }
+
+    // Generate inward number
+    const inwardNumber = await new Promise((resolve, reject) => {
+      generateInwardNumber(receivingDivision, receivingSection, site, process, (err, number) => {
+        if (err) reject(err);
+        else resolve(number);
+      });
+    });
+
+    let ackNumber = null;
+    if (inwardType === 'With ACK') {
+      const [ackResults] = await connection.query(
+        'SELECT value FROM counters WHERE name = ? FOR UPDATE',
+        ['ack_number']
+      );
+      if (ackResults.length === 0) {
+        throw new Error('Acknowledgment counter not initialized');
+      }
+      ackNumber = ackResults[0].value.toString().padStart(6, '0');
+      await connection.query(
+        'UPDATE counters SET value = value + 1 WHERE name = ?',
+        ['ack_number']
+      );
+    }
+
+    const documentPath = req.file ? `/Uploads/${req.file.filename}` : null;
+
+    const query = `
+      INSERT INTO inward_documents (
+        inward_number, reference_number, subject, language, date_as_per_document, inward_type, ack_number,
+        process, site, submission_type, document_path, sender_within_aerb, sender_division,
+        sender_section, sender_name, sender_email, sender_type, pincode, city, state, region,
+        country, receiving_division, receiving_section, receiver, next_action_by, reply_expected
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      inwardNumber, referenceNumber, subject, language, dateAsPerDocument, inwardType, ackNumber,
+      process, site, submissionType, documentPath, senderWithinAerb === 'true',
+      senderDivision || null, senderSection || null, senderName, senderEmail, senderType,
+      pincode || null, city || null, state || null, region || null, country || null,
+      receivingDivision, receivingSection, receiver, nextActionBy, replyExpected === 'true',
+    ];
+
+    console.log('Inserting document with values:', values);
+
+    const [results] = await connection.query(query, values);
+    await connection.commit();
+
+    res.status(200).json({
+      message: 'Inward document saved successfully',
+      id: results.insertId,
+      inwardNumber,
+      ackNumber,
+    });
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+      console.log('Transaction rolled back due to error');
+    }
+    console.error('Error saving inward document:', err.message, err.stack);
+    res.status(500).json({
+      message: 'Database error',
+      details: err.message,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+      console.log('Database connection released');
+    }
+  }
+});
+
+initializeDatabase().then(() => {
+  app.listen(4000, () => {
+    console.log('Inward server running on http://localhost:4000');
+  });
+}).catch(err => {
+  console.error('Failed to start server:', err);
+});

@@ -1,0 +1,100 @@
+body {
+    background-color: #f8f9fa;
+  }
+  .container {
+    max-width: 800px;
+  }
+  .form-group label {
+    font-weight: bold;
+  }
+  .alert {
+    margin-top: 20px;
+  }
+  .row .form-group {
+    margin-bottom: 1rem;
+    
+  }
+  
+  .form-group select, .form-group input {
+    width: 100%;
+  }
+  body {
+    background-color: #f0f4f8;
+    font-family: 'Arial', sans-serif;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  .form-section {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+  }
+  .form-section h2 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    color: #2d3748;
+  }
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 0.5rem;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #2d3748;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  }
+  button {
+    background-color: #4a90e2;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #357abd;
+  }
+  button:disabled {
+    background-color: #a0aec0;
+    cursor: not-allowed;
+  }
+  #success-message, #error-message, #add-section-message {
+    display: none;
+    color: white;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+    text-align: center;
+  }
+  #add-section-inline {
+    display: none;
+    margin-top: 0.5rem;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+  }
+  .secondary-btn {
+    background-color: #6b7280;
+  }
+  .secondary-btn:hover {
+    background-color: #4b5563;
+  }

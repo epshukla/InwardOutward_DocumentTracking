@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outward Document Report</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@latest/public/assets/styles/choices.min.css">
+  <style>
+    body {
+      background-color: #f0f4f8;
+      font-family: 'Inter', 'Arial', sans-serif;
+    }
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .form-section {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      margin-bottom: 2rem;
+    }
+    .form-section h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: #1a202c;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: #2d3748;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #3182ce;
+      box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+    }
+    button {
+      background-color: #3182ce;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background-color 0.2s ease-in-out;
+    }
+    button:hover {
+      background-color: #2b6cb0;
+    }
+    button:disabled {
+      background-color: #a0aec0;
+      cursor: not-allowed;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background-color: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 0.9rem;
+    }
+    th {
+      background-color: #3182ce;
+      color: white;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      color: #2d3748;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover {
+      background-color: #f7fafc;
+    }
+    #error-message {
+      display: none;
+      color: white;
+      background-color: #e53e3e;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 1rem;
+      text-align: center;
+      font-weight: 500;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+    .stats-card {
+      background-color: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    .stats-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1a202c;
+      margin-bottom: 1rem;
+    }
+    .language-table td, .receiver-region-table td {
+      text-align: center;
+      font-weight: 500;
+    }
+    .language-table th, .receiver-region-table th {
+      padding: 1.25rem;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">Outward Document Report</h1>
+    <a href="/" class="text-blue-600 hover:underline mb-6 inline-block text-sm font-medium">← Back to Form</a>
+
+    <div class="form-section">
+      <h2>Generate Report</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="form-group">
+          <label for="start-date">Start Date *</label>
+          <input type="date" id="start-date" name="startDate" required>
+        </div>
+        <div class="form-group">
+          <label for="end-date">End Date *</label>
+          <input type="date" id="end-date" name="endDate" required>
+        </div>
+        <div class="form-group">
+          <label for="sender">Sender</label>
+          <select id="sender" name="sender">
+            <option value="">All Senders</option>
+          </select>
+        </div>
+      </div>
+      <div class="text-center mt-6">
+        <button id="generate-report-btn">Generate Report</button>
+        <button id="download-pdf-btn" class="ml-4" disabled>Download PDF</button>
+      </div>
+    </div>
+
+    <div id="report-section" class="form-section" style="display: none;">
+      <h2>Report Results</h2>
+
+      <div id="date-range-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Documents Sent Between Dates</h3>
+        <div class="table-container">
+          <table id="date-range-table">
+            <thead>
+              <tr>
+                <th>Outward Number</th>
+                <th>Reference</th>
+                <th>Subject</th>
+                <th>Recipient</th>
+                <th>Organization</th>
+                <th>Division</th>
+                <th>Section</th>
+                <th>Sender</th>
+                <th>Date Sent</th>
+                <th>Submission Type</th>
+                <th>Document</th>
+              </tr>
+            </thead>
+            <tbody id="date-range-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="language-stats-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Language Usage by Designation (%)</h3>
+        <div class="table-container">
+          <table id="language-stats-table" class="language-table">
+            <thead>
+              <tr>
+                <th>Designation Category</th>
+                <th>Hindi</th>
+                <th>English</th>
+                <th>Bilingual</th>
+                <th>Other</th>
+              </tr>
+            </thead>
+            <tbody id="language-stats-table-body">
+              <tr>
+                <td>>=SOH</td>
+                <td id="soh-hindi">-</td>
+                <td id="soh-english">-</td>
+                <td id="soh-bilingual">-</td>
+                <td id="soh-other">-</td>
+              </tr>
+              <tr>
+                <td>>=SOF <SOH</td>
+                <td id="sof-hindi">-</td>
+                <td id="sof-english">-</td>
+                <td id="sof-bilingual">-</td>
+                <td id="sof-other">-</td>
+              </tr>
+              <tr>
+                <td><SOF</td>
+                <td id="below-sof-hindi">-</td>
+                <td id="below-sof-english">-</td>
+                <td id="below-sof-bilingual">-</td>
+                <td id="below-sof-other">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="addressed-to-stats-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Documents Sent by Receiver Type</h3>
+        <div class="stats-card">
+          <canvas id="addressed-to-chart"></canvas>
+        </div>
+      </div>
+
+      <div id="region-stats-section" class="mb-8">
+        <h3 class="text-lg font-semibold mb-4">Documents Sent by Region</h3>
+        <div class="stats-card">
+          <canvas id="region-chart"></canvas>
+        </div>
+      </div>
+
+      <div id="sender-documents-section" class="mb-8" style="display: none;">
+        <h3 class="text-lg font-semibold mb-4">Documents Sent by Selected Sender</h3>
+        <div class="table-container">
+          <table id="sender-documents-table">
+            <thead>
+              <tr>
+                <th>Outward Number</th>
+                <th>Reference</th>
+                <th>Subject</th>
+                <th>Recipient</th>
+                <th>Organization</th>
+                <th>Division</th>
+                <th>Section</th>
+                <th>Sender</th>
+                <th>Date Sent</th>
+                <th>Submission Type</th>
+                <th>Document</th>
+              </tr>
+            </thead>
+            <tbody id="sender-documents-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="sender-receiver-region-stats-section" class="mb-8" style="display: none;">
+        <h3 class="text-lg font-semibold mb-4">Documents by Receiver Type and Region for Selected Sender</h3>
+        <div class="table-container">
+          <table id="sender-receiver-region-table" class="receiver-region-table">
+            <thead>
+              <tr>
+                <th>Receiver Type</th>
+                <th>Region A</th>
+                <th>Region B</th>
+                <th>Region C</th>
+                <th>Region D</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="sender-receiver-region-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="error-message"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/choices.js@latest/public/assets/scripts/choices.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <script src="report.js"></script>
+</body>
+</html>

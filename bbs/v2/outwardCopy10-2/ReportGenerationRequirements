@@ -1,0 +1,43 @@
+Can filter for the documents sent in a specific period of times within 2 dates(as per Date on the document):
+1.Start
+2.End
+
+
+Language- 
+What is is the number of documents sent by employees in the following categories:
+>=SOH
+>=SOF <SOH
+<SOF
+are in the following languages:
+1.Hindi
+2.English
+3.Billingual
+4.Other
+OR
+
+What is the percentage of documents sent by employees in the following language:
+1.Hindi
+2.English
+3.Billingual
+4.Other
+categorized by their designation in categories:
+>=SOH
+>=SOF <SOH
+<SOF
+
+
+
+How many documents are sent to central, state, private and to citizens.
+How many documents are sent to respective regions:
+1.A
+2.B
+3.C
+
+
+Can see the number of documents and what documents were sent by a particular sender.
+
+##
+Division wise distribution
+
+
+

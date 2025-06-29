@@ -1,0 +1,31 @@
+async function loadnext(selectElement) {
+        selectElement.innerHTML = '<option value="">' + ('Select Employee') + '</option>';
+       
+        try {
+          console.log(`Fetching employees for division`);
+          const response = await fetch(`http://localhost:4000/api/allemp`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+          }
+          const employees = await response.json();
+          console.log('Employees fetched:', employees);
+          if (employees.length === 0) {
+            console.warn(`No employees found for division`);
+            showError(`No employees found for Division`);
+            selectElement.disabled = true;
+          } else {
+            employees.forEach(emp => {
+              const option = document.createElement('option');
+              option.value = emp.EmpName;
+              option.text = emp.EmpName;
+              selectElement.appendChild(option);
+            });
+            selectElement.disabled = false;
+          }
+        } catch (error) {
+          console.error('Error loading employees:', error);
+          showError(`Failed to load employees: ${error.message}`);
+          selectElement.disabled = true;
+        }
+      }
